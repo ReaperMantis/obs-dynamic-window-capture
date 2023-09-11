@@ -2,15 +2,17 @@
 
 This python script allows capturing of windows in OBS that have a dynamic title. This is useful for capturing WhatsApp or other programs where you want to capture a window based on a regular expression.
 
-This script only works on Windows.
+This script is cross platform and should work on Windows, Mac and Linux.
 
 ## Installation
 
 OBS requires you to install a compatible version of Python.
 
-After installing Python, you will also need pywin32 which can be downloaded from [here](https://github.com/mhammond/pywin32/releases).
+The following dependencies are needed:
+- [PyWinCtl](https://github.com/Kalmat/PyWinCtl)
+- ObsPython (Comes bundled with OBS-Studio)
 
-To install other dependencies:
+To install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
@@ -23,7 +25,7 @@ pip install -r requirements.txt
 4. Specify an executable (case insensitive) - e.g. "whatsapp.exe".
 5. Provide a regular expression for the window title - e.g. ".*video call".
 
-Whenever the scene is changed, a check is done to see if the selected source matches the window that is configured.
+Whenever a window changes, a check is done to update the capture settings of the configured capture source.
 
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)
