@@ -1,8 +1,8 @@
 import re
-import time
 
 import obspython as obs
 import pywinctl as p
+
 
 def script_description():
     """
@@ -20,7 +20,7 @@ def script_properties():
     props = obs.obs_properties_create()
     p = obs.obs_properties_add_list(props, "source", "Window Capture Source", obs.OBS_COMBO_TYPE_LIST,
                                     obs.OBS_COMBO_FORMAT_STRING)
-
+    # Populate the dropdown with appropriate sources
     sources = obs.obs_enum_sources()
     if sources is not None:
         for source in sources:
@@ -34,7 +34,9 @@ def script_properties():
     obs.obs_properties_add_text(props, "executable", "Executable to Match (e.g. whatsapp.exe)", obs.OBS_TEXT_DEFAULT)
     obs.obs_properties_add_text(props, "window_match", "Regex for Title to Match (e.g. .*video call",
                                 obs.OBS_TEXT_DEFAULT)
-
+    obs.obs_properties_add_int(props, "retry_count",
+                               "Number of times to retry searching for a window before giving up", min=0, max=50,
+                               step=1)
     return props
 
 
@@ -44,11 +46,12 @@ def script_update(settings):
     Parameters:
     settings – Settings associated with the script.
     """
-    global config_source_name, config_executable, config_window_match, config_class
+    global config_source_name, config_executable, config_window_match, config_retry_count
     print("Settings updated")
     config_source_name = obs.obs_data_get_string(settings, "source")
     config_executable = obs.obs_data_get_string(settings, "executable")
     config_window_match = obs.obs_data_get_string(settings, "window_match")
+    config_retry_count = int(obs.obs_data_get_int(settings, "retry_count"))
 
 
 def enum_windows():
@@ -59,16 +62,20 @@ def enum_windows():
 
 
 def match_window(executable, re_title):
+    global config_retry_count
     exec_lower = executable.lower()
-    print("Matching executable %s and window title: %s" % (executable, re_title))
-    for window in enum_windows():
-        if window.getAppName() == exec_lower and re.match(re_title, window.title) is not None:
-            print("Matching Window Found: %s" % window.title)
-            print("Setting watchdog to see if window closes.")
-            window.watchdog.start(isAliveCB=on_window_close)
-            window.watchdog.setTryToFind(True)
-            return window
-    print("No window matches executable %s and window title: %s" % (executable, re_title))
+    for i in range(config_retry_count+1):
+        print("Searching for matching executable %s and window title: %s" % (executable, re_title))
+        for window in enum_windows():
+            if window.getAppName() == exec_lower and re.match(re_title, window.title) is not None:
+                print("Matching Window Found: %s" % window.title)
+                print("Setting watchdog to see if window closes.")
+                window.watchdog.start(isAliveCB=on_window_close)
+                window.watchdog.setTryToFind(True)
+                return window
+        print("No window matches executable %s and window title: %s" % (executable, re_title))
+        if i < config_retry_count:
+            print("Retry %s..." % str(i+1))
     return None
 
 
@@ -88,9 +95,6 @@ def on_window_close(isAlive):
                 print("Source matched: %s" % (obs.obs_source_get_name(cur_source)))
                 cur_settings = obs.obs_source_get_settings(cur_source)
                 print("Current settings: %s" % obs.obs_data_get_json(cur_settings))
-                print('Searching for new window...')
-                # Allow some time to pass so the window can be completed.
-                time.sleep(2)
                 new_window = match_window(config_executable, config_window_match)
                 if new_window is not None:
                     # First, update the Window title information
@@ -104,13 +108,14 @@ def on_window_close(isAlive):
                     # Next, update the Capture Window information
                     old_capture_window = obs.obs_data_get_string(cur_settings, "capture_window")
                     new_capture_window = "%s\r\n%s\r\n%s" % (
-                    new_window.getHandle(), new_window.title, new_window.getAppName())
+                        new_window.getHandle(), new_window.title, new_window.getAppName())
                     print("Old Window Cap: %s\r\nNew Window Cap: %s" % (old_window_text, new_window_text))
                     if old_capture_window != new_capture_window:
                         print("Update source capture to %s" % new_capture_window)
                         obs.obs_data_set_string(cur_settings, "capture_window", new_capture_window)
                         obs.obs_source_update(cur_source, cur_settings)
-                print("Updated settings: %s" % obs.obs_data_get_json(cur_settings))
+                    if old_window_text != new_window_text or old_capture_window != new_capture_window:
+                        print("Updated settings: %s" % obs.obs_data_get_json(cur_settings))
                 obs.obs_data_release(cur_settings)
 
         obs.sceneitem_list_release(scene_items)
