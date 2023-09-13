@@ -149,14 +149,14 @@ def match_window(executable, re_title):
     global config_retry_count
     exec_lower = executable.lower()
     print("Searching for '%s' owned by '%s'." % (re_title, executable))
-    for i in range(config_retry_count+1):
+    for i in range(config_retry_count + 1):
         for window in enum_windows():
             if window.getAppName() == exec_lower and re.match(re_title, window.title) is not None:
                 print("\tMatching window found: %s" % window.title)
                 return window
         print("\tNo match for '%s' owned by '%s'." % (re_title, executable))
         if i < config_retry_count:
-            print("\tRetry %s..." % str(i+1))
+            print("\tRetry %s..." % str(i + 1))
     print("Retries exceeded, giving up.")
     return None
 
@@ -176,17 +176,19 @@ def on_window_close(isAlive):
         if new_window is not None:
             stale_settings = get_source_settings(config_source_name, ["window_capture", "xcomposite_input"])
             new_settings = copy.copy(stale_settings)
-            new_settings["window"]="%s:%s" % (new_window.title, new_window.getAppName())
-            new_settings["capture_window"] = "%s\r\n%s\r\n%s" % (new_window.getHandle(), new_window.title, new_window.getAppName())
+            new_settings["window"] = "%s:%s" % (new_window.title, new_window.getAppName())
+            new_settings["capture_window"] = "%s\r\n%s\r\n%s" % (
+            new_window.getHandle(), new_window.title, new_window.getAppName())
             if stale_settings != new_settings:
                 update_source_settings(config_source_name, ["window_capture", "xcomposite_input"], new_settings)
                 print("\tUpdating source settings...")
                 print("\t\tStale settings:", stale_settings)
-                print("\t\tUpdated settings:",get_source_settings(config_source_name, ["window_capture", "xcomposite_input"]))
+                print("\t\tUpdated settings:",
+                      get_source_settings(config_source_name, ["window_capture", "xcomposite_input"]))
                 set_watchdog(new_window)
 
-def on_window_title_change():
-    # TODO: Why isnt this being called when a window title changes!?
+
+def on_window_title_change(new_title):
     global config_source_name, config_executable, config_window_match
     print("Window title has been changed!")
     new_window = match_window(config_executable, config_window_match)
@@ -201,6 +203,7 @@ def on_window_title_change():
             print("\t\tStale settings:", stale_settings)
             print("\t\tUpdated settings:",
                   get_source_settings(config_source_name, ["window_capture", "xcomposite_input"]))
+
 
 def update_source_settings(source_name, source_types, settings):
     """
@@ -221,6 +224,8 @@ def update_source_settings(source_name, source_types, settings):
                 if capture_source_type in source_types and capture_source_name == source_name:
                     with data_create_from_json(json.dumps(settings)) as data:
                         obs.obs_source_update(capture_source, data)
+
+
 def get_source_settings(source_name, source_types):
     """
     Given a source name and type, this function will return the capture source settings as a JSON object.
@@ -244,7 +249,9 @@ def get_source_settings(source_name, source_types):
                         source_settings = json.loads(obs.obs_data_get_json(settings))
     return source_settings
 
+
 def on_event(event):
+    # TODO: This doesnt work well if it doesnt find the capture source in the current scene.
     print_event(event)
     if event == obs.OBS_FRONTEND_EVENT_SCENE_CHANGED:
         new_window = match_window(config_executable, config_window_match)
@@ -253,7 +260,7 @@ def on_event(event):
             new_settings = copy.copy(stale_settings)
             new_settings["window"] = "%s:%s" % (new_window.title, new_window.getAppName())
             new_settings["capture_window"] = "%s\r\n%s\r\n%s" % (
-            new_window.getHandle(), new_window.title, new_window.getAppName())
+                new_window.getHandle(), new_window.title, new_window.getAppName())
             if stale_settings != new_settings:
                 update_source_settings(config_source_name, ["window_capture", "xcomposite_input"], new_settings)
                 print("\tUpdating source settings...")
@@ -261,6 +268,7 @@ def on_event(event):
                 print("\t\tUpdated settings:",
                       get_source_settings(config_source_name, ["window_capture", "xcomposite_input"]))
                 set_watchdog(new_window)
+
 
 def script_load(settings):
     """
@@ -270,91 +278,130 @@ def script_load(settings):
     """
     print("Script loaded.")
     obs.obs_frontend_add_event_callback(on_event)
+    # TODO: Don't relay on the current active scene. Maybe add another setting to limit the scene.
 
 
 def print_event(event):
     match event:
         case obs.OBS_FRONTEND_EVENT_STREAMING_STARTING:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_STREAMING_STARTING,"OBS_FRONTEND_EVENT_STREAMING_STARTING"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_STREAMING_STARTING, "OBS_FRONTEND_EVENT_STREAMING_STARTING"))
         case obs.OBS_FRONTEND_EVENT_STREAMING_STARTED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_STREAMING_STARTED,"OBS_FRONTEND_EVENT_STREAMING_STARTED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_STREAMING_STARTED, "OBS_FRONTEND_EVENT_STREAMING_STARTED"))
         case obs.OBS_FRONTEND_EVENT_STREAMING_STOPPING:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_STREAMING_STOPPING,"OBS_FRONTEND_EVENT_STREAMING_STOPPING"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_STREAMING_STOPPING, "OBS_FRONTEND_EVENT_STREAMING_STOPPING"))
         case obs.OBS_FRONTEND_EVENT_STREAMING_STOPPED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_STREAMING_STOPPED,"OBS_FRONTEND_EVENT_STREAMING_STOPPED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_STREAMING_STOPPED, "OBS_FRONTEND_EVENT_STREAMING_STOPPED"))
         case obs.OBS_FRONTEND_EVENT_RECORDING_STARTING:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_RECORDING_STARTING,"OBS_FRONTEND_EVENT_RECORDING_STARTING"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_RECORDING_STARTING, "OBS_FRONTEND_EVENT_RECORDING_STARTING"))
         case obs.OBS_FRONTEND_EVENT_RECORDING_STARTED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_RECORDING_STARTED,"OBS_FRONTEND_EVENT_RECORDING_STARTED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_RECORDING_STARTED, "OBS_FRONTEND_EVENT_RECORDING_STARTED"))
         case obs.OBS_FRONTEND_EVENT_RECORDING_STOPPING:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_RECORDING_STOPPING,"OBS_FRONTEND_EVENT_RECORDING_STOPPING"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_RECORDING_STOPPING, "OBS_FRONTEND_EVENT_RECORDING_STOPPING"))
         case obs.OBS_FRONTEND_EVENT_RECORDING_STOPPED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_RECORDING_STOPPED,"OBS_FRONTEND_EVENT_RECORDING_STOPPED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_RECORDING_STOPPED, "OBS_FRONTEND_EVENT_RECORDING_STOPPED"))
         case obs.OBS_FRONTEND_EVENT_RECORDING_PAUSED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_RECORDING_PAUSED,"OBS_FRONTEND_EVENT_RECORDING_PAUSED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_RECORDING_PAUSED, "OBS_FRONTEND_EVENT_RECORDING_PAUSED"))
         case obs.OBS_FRONTEND_EVENT_RECORDING_UNPAUSED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_RECORDING_UNPAUSED,"OBS_FRONTEND_EVENT_RECORDING_UNPAUSED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_RECORDING_UNPAUSED, "OBS_FRONTEND_EVENT_RECORDING_UNPAUSED"))
         case obs.OBS_FRONTEND_EVENT_SCENE_CHANGED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_SCENE_CHANGED,"OBS_FRONTEND_EVENT_SCENE_CHANGED"))
+            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_SCENE_CHANGED, "OBS_FRONTEND_EVENT_SCENE_CHANGED"))
         case obs.OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED,"OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED, "OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED"))
         case obs.OBS_FRONTEND_EVENT_TRANSITION_CHANGED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_TRANSITION_CHANGED,"OBS_FRONTEND_EVENT_TRANSITION_CHANGED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_TRANSITION_CHANGED, "OBS_FRONTEND_EVENT_TRANSITION_CHANGED"))
         case obs.OBS_FRONTEND_EVENT_TRANSITION_STOPPED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_TRANSITION_STOPPED,"OBS_FRONTEND_EVENT_TRANSITION_STOPPED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_TRANSITION_STOPPED, "OBS_FRONTEND_EVENT_TRANSITION_STOPPED"))
         case obs.OBS_FRONTEND_EVENT_TRANSITION_LIST_CHANGED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_TRANSITION_LIST_CHANGED,"OBS_FRONTEND_EVENT_TRANSITION_LIST_CHANGED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_TRANSITION_LIST_CHANGED, "OBS_FRONTEND_EVENT_TRANSITION_LIST_CHANGED"))
         case obs.OBS_FRONTEND_EVENT_TRANSITION_DURATION_CHANGED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_TRANSITION_DURATION_CHANGED,"OBS_FRONTEND_EVENT_TRANSITION_DURATION_CHANGED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_TRANSITION_DURATION_CHANGED, "OBS_FRONTEND_EVENT_TRANSITION_DURATION_CHANGED"))
         case obs.OBS_FRONTEND_EVENT_TBAR_VALUE_CHANGED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_TBAR_VALUE_CHANGED,"OBS_FRONTEND_EVENT_TBAR_VALUE_CHANGED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_TBAR_VALUE_CHANGED, "OBS_FRONTEND_EVENT_TBAR_VALUE_CHANGED"))
         case obs.OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING,"OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING, "OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING"))
         case obs.OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED,"OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED, "OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED"))
         case obs.OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED,"OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED, "OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED"))
         case obs.OBS_FRONTEND_EVENT_SCENE_COLLECTION_RENAMED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_SCENE_COLLECTION_RENAMED,"OBS_FRONTEND_EVENT_SCENE_COLLECTION_RENAMED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_SCENE_COLLECTION_RENAMED, "OBS_FRONTEND_EVENT_SCENE_COLLECTION_RENAMED"))
         case obs.OBS_FRONTEND_EVENT_PROFILE_CHANGING:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_PROFILE_CHANGING,"OBS_FRONTEND_EVENT_PROFILE_CHANGING"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_PROFILE_CHANGING, "OBS_FRONTEND_EVENT_PROFILE_CHANGING"))
         case obs.OBS_FRONTEND_EVENT_PROFILE_CHANGED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_PROFILE_CHANGED,"OBS_FRONTEND_EVENT_PROFILE_CHANGED"))
+            print(
+                "Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_PROFILE_CHANGED, "OBS_FRONTEND_EVENT_PROFILE_CHANGED"))
         case obs.OBS_FRONTEND_EVENT_PROFILE_LIST_CHANGED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_PROFILE_LIST_CHANGED,"OBS_FRONTEND_EVENT_PROFILE_LIST_CHANGED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_PROFILE_LIST_CHANGED, "OBS_FRONTEND_EVENT_PROFILE_LIST_CHANGED"))
         case obs.OBS_FRONTEND_EVENT_PROFILE_RENAMED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_PROFILE_RENAMED,"OBS_FRONTEND_EVENT_PROFILE_RENAMED"))
+            print(
+                "Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_PROFILE_RENAMED, "OBS_FRONTEND_EVENT_PROFILE_RENAMED"))
         case obs.OBS_FRONTEND_EVENT_FINISHED_LOADING:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_FINISHED_LOADING,"OBS_FRONTEND_EVENT_FINISHED_LOADING"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_FINISHED_LOADING, "OBS_FRONTEND_EVENT_FINISHED_LOADING"))
         case obs.OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN,"OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN, "OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN"))
         case obs.OBS_FRONTEND_EVENT_EXIT:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_EXIT,"OBS_FRONTEND_EVENT_EXIT"))
+            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_EXIT, "OBS_FRONTEND_EVENT_EXIT"))
         case obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTING:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTING,"OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTING"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTING, "OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTING"))
         case obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTED,"OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTED, "OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTED"))
         case obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_STOPPING:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_STOPPING,"OBS_FRONTEND_EVENT_REPLAY_BUFFER_STOPPING"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_STOPPING, "OBS_FRONTEND_EVENT_REPLAY_BUFFER_STOPPING"))
         case obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_STOPPED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_STOPPED,"OBS_FRONTEND_EVENT_REPLAY_BUFFER_STOPPED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_STOPPED, "OBS_FRONTEND_EVENT_REPLAY_BUFFER_STOPPED"))
         case obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_SAVED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_SAVED,"OBS_FRONTEND_EVENT_REPLAY_BUFFER_SAVED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_REPLAY_BUFFER_SAVED, "OBS_FRONTEND_EVENT_REPLAY_BUFFER_SAVED"))
         case obs.OBS_FRONTEND_EVENT_STUDIO_MODE_ENABLED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_STUDIO_MODE_ENABLED,"OBS_FRONTEND_EVENT_STUDIO_MODE_ENABLED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_STUDIO_MODE_ENABLED, "OBS_FRONTEND_EVENT_STUDIO_MODE_ENABLED"))
         case obs.OBS_FRONTEND_EVENT_STUDIO_MODE_DISABLED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_STUDIO_MODE_DISABLED,"OBS_FRONTEND_EVENT_STUDIO_MODE_DISABLED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_STUDIO_MODE_DISABLED, "OBS_FRONTEND_EVENT_STUDIO_MODE_DISABLED"))
         case obs.OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED,"OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED, "OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED"))
         case obs.OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP,"OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP, "OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP"))
         case obs.OBS_FRONTEND_EVENT_VIRTUALCAM_STARTED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_VIRTUALCAM_STARTED,"OBS_FRONTEND_EVENT_VIRTUALCAM_STARTED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_VIRTUALCAM_STARTED, "OBS_FRONTEND_EVENT_VIRTUALCAM_STARTED"))
         case obs.OBS_FRONTEND_EVENT_VIRTUALCAM_STOPPED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_VIRTUALCAM_STOPPED,"OBS_FRONTEND_EVENT_VIRTUALCAM_STOPPED"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_VIRTUALCAM_STOPPED, "OBS_FRONTEND_EVENT_VIRTUALCAM_STOPPED"))
         case obs.OBS_FRONTEND_EVENT_THEME_CHANGED:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_THEME_CHANGED,"OBS_FRONTEND_EVENT_THEME_CHANGED"))
+            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_THEME_CHANGED, "OBS_FRONTEND_EVENT_THEME_CHANGED"))
         case obs.OBS_FRONTEND_EVENT_SCREENSHOT_TAKEN:
-            print("Value: %s\tEvent: %s" % (obs.OBS_FRONTEND_EVENT_SCREENSHOT_TAKEN,"OBS_FRONTEND_EVENT_SCREENSHOT_TAKEN"))
+            print("Value: %s\tEvent: %s" % (
+            obs.OBS_FRONTEND_EVENT_SCREENSHOT_TAKEN, "OBS_FRONTEND_EVENT_SCREENSHOT_TAKEN"))
         case _:
             print("Unknown Event:", event)
